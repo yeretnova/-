@@ -1,18 +1,19 @@
-# Random Quote Generator
+markdown
+# Training Planner
 
 **Автор:** Плаксина Дарья
-**Вариант:** Random Quote Generator
+**Вариант:**  Training Planner
 **Дата сдачи:** 30.04.2026
 
-## Описание програнны
-Random Quote Generator - приложение «Random Quote Generator» с использованием random, сохранением истории и Git
+## Описание программмы
+Приложение для планирования тренировок с возможностью фильтрации по типу и дате, сохранением данных в JSON.
 
 ## Требования для запуска
 Что нужно установить на компьютер:
-- Python 3.10 или выше
-- Библиотеки: `pip install matplotlib requests`
+- Python версии 3.6 или выше
+- Стандартные библиотеки Python
 
 ## Как запустить
-```bash
+   ```bash
 git clone https://github.com/yeretnova/-.git
 python main.py
