@@ -1,6 +1,7 @@
 # Random Quote Generator
 
 **Автор:** Плаксина Дарья
+**Вариант:** Random Quote Generator
 **Дата сдачи:** 30.04.2026
 
 ## Описание програнны
