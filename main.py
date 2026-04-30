@@ -1,198 +1,87 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-import requests
 import json
 import os
 
-# --- 1. НАСТРОЙКИ И ПЕРЕМЕННЫЕ ---
-API_KEY = "YOUR_API_KEY_HERE" # <-- ВСТАВЬТЕ СЮДА СВОЙ КЛЮЧ С exchangerate-api.com
-BASE_URL = f"https://v6.exchangerate-api.com/v6/{API_KEY}/latest/"
 
-# Получаем путь к папке со скриптом для сохранения JSON
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-HISTORY_FILE = os.path.join(BASE_DIR, "history.json")
+DATA_FILE = os.path.join(BASE_DIR, "books.json")
 
-# Список валют (можно расширить)
-CURRENCIES = ["USD", "EUR", "GBP", "JPY", "CNY", "RUB", "CHF"]
-
-# --- 2. ФУНКЦИИ РАБОТЫ С ФАЙЛОМ ИСТОРИИ ---
-def load_history():
-    """Загружает историю из файла JSON."""
+def load_books():
+    """Загружает список книг из файла JSON."""
     try:
-        with open(HISTORY_FILE, "r", encoding="utf-8") as file:
+        with open(DATA_FILE, "r", encoding="utf-8") as file:
             return json.load(file)
     except (FileNotFoundError, json.JSONDecodeError):
         return []
 
-def save_history(entry):
-    """Сохраняет новую запись в файл JSON."""
-    history = load_history()
-    history.append(entry)
+def save_books(books):
+    """Сохраняет список книг в файл JSON."""
     try:
-        with open(HISTORY_FILE, "w", encoding="utf-8") as file:
-            json.dump(history, file, indent=2, ensure_ascii=False)
-        print("История успешно сохранена.")
+        with open(DATA_FILE, "w", encoding="utf-8") as file:
+            json.dump(books, file, indent=2, ensure_ascii=False)
+        print("Данные успешно сохранены.")
     except Exception as e:
-        messagebox.showerror("Ошибка сохранения", f"Не удалось сохранить историю:\n{str(e)}")
+        messagebox.showerror("Ошибка сохранения", f"Не удалось сохранить данные:\n{str(e)}")
 
-# --- 3. ФУНКЦИИ РАБОТЫ С API ---
-def get_exchange_rate(base_currency, target_currency):
-    """Запрашивает курс обмена у API."""
-    try:
-        response = requests.get(f"{BASE_URL}{base_currency}")
-        response.raise_for_status() # Проверка на ошибки HTTP (404, 500 и т.д.)
-        data = response.json()
-        
-        if data.get("result") == "error":
-            raise Exception(data.get("error-type", "Неизвестная ошибка API"))
-            
-        rate = data["conversion_rates"].get(target_currency)
-        if rate is None:
-            raise Exception(f"Конвертация из {base_currency} в {target_currency} недоступна.")
-        return rate
-    except requests.exceptions.RequestException as e:
-        messagebox.showerror("Ошибка сети", f"Проверьте подключение к интернету.\n{str(e)}")
-        return None
-
-# --- 4. ОСНОВНАЯ ЛОГИКА ПРИЛОЖЕНИЯ ---
-class CurrencyConverterApp:
+class BookTrackerApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Конвертер валют")
-        self.root.geometry("600x450")
-        self.root.resizable(False, False)
+        self.root.title("Трекер прочитанных книг")
+        self.root.geometry("800x500")
+        
+        self.books = load_books()
         
         self.create_widgets()
-        self.load_history_to_table() # Загружаем историю при запуске
+        self.update_table() 
 
     def create_widgets(self):
-        # Рамка для элементов управления
-        control_frame = tk.Frame(self.root)
-        control_frame.pack(pady=10)
+        input_frame = tk.LabelFrame(self.root, text="Добавить новую книгу", padx=10, pady=10)
+        input_frame.pack(pady=10, fill="x", padx=20)
 
-        # Валюта 'Из'
-        tk.Label(control_frame, text="Из:", font=("Arial", 12)).grid(row=0, column=0, padx=5)
-        self.from_currency_var = tk.StringVar(value="USD")
-        self.from_currency_menu = ttk.Combobox(control_frame, 
-                                               textvariable=self.from_currency_var,
-                                               values=CURRENCIES,
-                                               font=("Arial", 12),
-                                               width=5,
-                                               state="readonly")
-        self.from_currency_menu.grid(row=0, column=1, padx=5)
+        tk.Label(input_frame, text="Название:").grid(row=0, column=0, sticky="e", pady=2)
+        self.title_entry = tk.Entry(input_frame, width=40)
+        self.title_entry.grid(row=0, column=1, columnspan=3, sticky="w", pady=2)
 
-        # Валюта 'В'
-        tk.Label(control_frame, text="В:", font=("Arial", 12)).grid(row=0, column=2, padx=5)
-        self.to_currency_var = tk.StringVar(value="EUR")
-        self.to_currency_menu = ttk.Combobox(control_frame,
-                                             textvariable=self.to_currency_var,
-                                             values=CURRENCIES,
-                                             font=("Arial", 12),
-                                             width=5,
-                                             state="readonly")
-        self.to_currency_menu.grid(row=0, column=3, padx=5)
+        tk.Label(input_frame, text="Автор:").grid(row=1, column=0, sticky="e", pady=2)
+        self.author_entry = tk.Entry(input_frame, width=40)
+        self.author_entry.grid(row=1, column=1, columnspan=3, sticky="w", pady=2)
 
-        # Поле ввода суммы
-        tk.Label(control_frame, text="Сумма:", font=("Arial", 12)).grid(row=0, column=4, padx=5)
-        self.amount_entry = tk.Entry(control_frame, font=("Arial", 12), width=15)
-        self.amount_entry.grid(row=0, column=5, padx=5)
-        
-        # Кнопка конвертации
-        self.convert_btn = tk.Button(self.root, 
-                                     text="Конвертировать", 
-                                     font=("Arial", 12, "bold"), 
-                                     bg="#4CAF50", fg="white",
-                                     command=self.on_convert_click)
-        self.convert_btn.pack(pady=10)
+        tk.Label(input_frame, text="Жанр:").grid(row=2, column=0, sticky="e", pady=2)
+        self.genre_entry = tk.Entry(input_frame, width=40)
+        self.genre_entry.grid(row=2, column=1, sticky="w", pady=2)
 
-        # Результат (скрыто до нажатия кнопки)
-        self.result_label = tk.Label(self.root, text="", font=("Arial", 14), fg="blue")
-        
-        # Таблица истории
-        self.history_tree = ttk.Treeview(self.root, columns=("ID", "Из", "В", "Сумма", "Результат"), show="headings")
-        
-        self.history_tree.heading("ID", text="№")
-        self.history_tree.heading("Из", text="Из")
-        self.history_tree.heading("В", text="В")
-        self.history_tree.heading("Сумма", text="Сумма")
-        self.history_tree.heading("Результат", text="Результат")
-        
-        self.history_tree.column("ID", width=30)
-        self.history_tree.column("Из", width=60)
-        self.history_tree.column("В", width=60)
-        
-        self.history_tree.pack(fill="both", expand=True, padx=10, pady=10)
+        tk.Label(input_frame, text="Страниц:").grid(row=2, column=2, sticky="e", padx=(20,0), pady=2)
+        self.pages_entry = tk.Entry(input_frame, width=10)
+        self.pages_entry.grid(row=2, column=3, sticky="w", pady=2)
 
-    def on_convert_click(self):
-        """Обработчик нажатия кнопки 'Конвертировать'."""
-        
-        # Очистка предыдущего результата
-        self.result_label.pack_forget()
-        
-        # Получение данных из полей
-        amount_str = self.amount_entry.get()
-        
-         # --- ВАЛИДАЦИЯ ВВОДА ---
-        if not amount_str.replace('.', '', 1).isdigit(): # Проверка на число (допускаем точку)
-            messagebox.showerror("Ошибка ввода", "Пожалуйста, введите корректное число.")
-            return
-            
-        amount = float(amount_str)
-        
-         if amount <= 0:
-            messagebox.showerror("Ошибка ввода", "Сумма должна быть больше нуля.")
-            return
+        add_btn = tk.Button(self.root, text="Добавить книгу", command=self.add_book)
+        add_btn.pack(pady=5)
 
-         from_cur = self.from_currency_var.get()
-         to_cur = self.to_currency_var.get()
+        table_frame = tk.Frame(self.root)
+        table_frame.pack(pady=10, fill="both", expand=True)
+
+        self.columns = ("title", "author", "genre", "pages")
+        self.tree = ttk.Treeview(table_frame, columns=self.columns, show="headings")
+        
+         self.tree.heading("title", text="Название")
+         self.tree.heading("author", text="Автор")
+         self.tree.heading("genre", text="Жанр")
+         self.tree.heading("pages", text="Страниц")
          
-         if from_cur == to_cur:
-            messagebox.showwarning("Внимание", "Выбраны одинаковые валюты.")
-            return
-
-         # --- ЗАПРОС К API ---
-         rate = get_exchange_rate(from_cur, to_cur)
+         self.tree.column("title", width=250)
+         self.tree.column("author", width=150)
+         self.tree.column("genre", width=150)
+         self.tree.column("pages", width=80, anchor="e")
          
-         if rate is None: # Если была ошибка сети или API вернуло None
-             return
+         self.tree.pack(side="left", fill="both", expand=True)
 
-         result_amount = round(amount * rate, 2)
-         
-         # Отображение результата на экране
-         result_text = f"{amount} {from_cur} = {result_amount} {to_cur}"
-         self.result_label.config(text=result_text)
-         self.result_label.pack(pady=10)
-         
-         # Сохранение в историю (в фоне)
-         history_entry = {
-             "from": from_cur,
-             "to": to_cur,
-             "amount": amount,
-             "result": result_amount,
-             "rate": rate,
-             "timestamp": "now" # Можно добавить реальное время через datetime
-         }
-         save_history(history_entry)
-         
-         # Обновление таблицы на экране (добавляем только последнюю строку для наглядности)
-         history_len = len(self.history_tree.get_children())
-         self.history_tree.insert("", "end", values=(history_len + 1, from_cur, to_cur, amount, result_amount))
+         scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
+         self.tree.configure(yscrollcommand=scrollbar.set)
+         scrollbar.pack(side="right", fill="y")
 
+         filter_frame = tk.Frame(self.root)
+         filter_frame.pack(pady=5, fill="x", padx=20)
 
-    def load_history_to_table(self):
-        """Загружает всю историю из файла в таблицу при старте."""
-        
-         for record in load_history():
-             history_len = len(self.history_tree.get_children())
-             self.history_tree.insert("", "end", values=(history_len + 1,
-                                                        record["from"],
-                                                        record["to"],
-                                                        record["amount"],
-                                                        record["result"]))
-
-
-# --- ЗАПУСК ПРИЛОЖЕНИЯ ---
-if __name__ == "__main__":
-    root_window = tk.Tk()
-    app = CurrencyConverterApp(root_window)
-    root_window.mainloop()
+         tk.Label(filter_frame, text="Фильтр по жанру:").pack(side="left")
+         self.Вот полный, структурированный и готовый к запуску код GUI-приложения **«Book Tracker»** на Python с использованием библиотеки Tkinter.
