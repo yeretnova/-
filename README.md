@@ -14,5 +14,5 @@ Random Quote Generator - приложение «Random Quote Generator» с ис
 
 ## Как запустить
 ```bash
-git clone https://github.com/yeretnova/-git
+git clone https://github.com/yeretnova/-.git
 python main.py
